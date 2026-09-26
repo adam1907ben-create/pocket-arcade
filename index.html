@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Pocket Arcade: play Snake, 2048, Tic-tac-toe, Memory and Minesweeper in your browser.">
+<title>Pocket Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@500;700;800&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #2340c8;
+    --bg-dot: #2b4ad6;
+    --ink: #0e1a4f;
+    --ink-2: #16256b;
+    --sun: #ffd23f;
+    --pink: #ff6fa3;
+    --mint: #6ee7b7;
+    --lilac: #b9a6ff;
+    --paper: #f7f8ff;
+    --paper-dim: #c9d2ff;
+    --display: "Bungee", "Arial Black", Impact, sans-serif;
+    --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  }
+  html, body { min-height: 100%; }
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(var(--bg-dot) 1.5px, transparent 1.6px);
+    background-size: 18px 18px;
+    color: var(--paper);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding-inline: 16px;
+    padding-block: 28px 48px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; display: grid; gap: 24px; }
+
+  header { display: grid; gap: 6px; }
+  h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(2.2rem, 7vw, 4rem);
+    line-height: 1;
+    margin: 0;
+    color: var(--sun);
+    text-shadow: 4px 4px 0 var(--ink);
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+  }
+  header p { margin: 0; max-width: 60ch; color: var(--paper-dim); font-weight: 700; }
+
+  /* Cartridge picker */
+  .carts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .cart {
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+    background: var(--paper);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 10px 10px 4px 4px;
+    padding: 10px 12px 12px;
+    box-shadow: 4px 4px 0 var(--ink);
+    display: grid;
+    gap: 2px;
+    transition: transform .12s, box-shadow .12s, background .12s;
+  }
+  .cart .glyph { font-size: 1.3rem; line-height: 1; color: var(--cart-c, var(--ink)); -webkit-text-stroke: 1px var(--ink); }
+  .cart .name { font-family: var(--display); font-size: 0.95rem; letter-spacing: 0.02em; }
+  .cart .tag { font-size: 0.78rem; font-weight: 700; opacity: .7; line-height: 1.25; }
+  .cart:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+  .cart[aria-pressed="true"] { background: var(--sun); transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+  .cart:focus-visible, button:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+
+  /* Console */
+  .console { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+  .screen {
+    background: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 20px;
+    box-shadow: 6px 6px 0 rgba(14, 26, 79, .55);
+    padding: 16px;
+    display: grid;
+    gap: 14px;
+  }
+  .hud { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+  .hud .game-title { font-family: var(--display); font-size: 1.4rem; color: var(--paper); line-height: 1; }
+  .meters { display: flex; gap: 10px; }
+  .meter { background: var(--ink-2); border-radius: 10px; padding: 6px 12px; min-width: 84px; text-align: right; }
+  .meter span { display: block; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--paper-dim); }
+  .meter b { font-family: var(--display); font-weight: 400; font-size: 1.35rem; color: var(--sun); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .meter.alt b { color: var(--mint); }
+  .area { display: grid; justify-items: center; gap: 14px; min-height: 300px; align-content: start; }
+  .area.swipe { touch-action: none; }
+  .status { min-height: 1.5em; text-align: center; color: var(--paper-dim); font-weight: 700; margin: 0; }
+
+  .panel {
+    background: var(--paper);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 16px;
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+  }
+  .panel h2 { font-family: var(--display); font-weight: 400; font-size: 1.05rem; margin: 0; letter-spacing: 0.02em; }
+  .panel p { margin: 0; }
+  .panel dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 0.92rem; }
+  .panel dt { font-weight: 800; }
+  .panel dd { margin: 0; }
+  kbd { font-family: var(--body); font-weight: 800; font-size: 0.8rem; background: #e6eaff; border: 1.5px solid var(--ink); border-bottom-width: 3px; border-radius: 5px; padding: 0 5px; white-space: nowrap; }
+  .btn {
+    font-family: var(--display);
+    font-size: 1rem;
+    cursor: pointer;
+    background: var(--pink);
+    color: var(--ink);
+    border: 3px solid var(--ink);
+    border-radius: 10px;
+    padding: 10px 14px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  .note { font-size: 0.8rem; opacity: .7; }
+
+  /* Overlay used by board games */
+  .board-wrap { position: relative; width: min(100%, 520px); }
+  .overlay {
+    position: absolute; inset: 0;
+    display: grid; place-content: center; justify-items: center; gap: 12px;
+    text-align: center; padding: 20px;
+    background: rgba(14, 26, 79, .12);
+    border-radius: 12px;
+    color: var(--paper);
+    font-weight: 800;
+    font-size: 1.05rem;
+    cursor: pointer;
+  }
+  .overlay strong { font-family: var(--display); font-weight: 400; font-size: 1.6rem; color: var(--sun); line-height: 1.1; }
+  .ov-card { display: grid; justify-items: center; gap: 8px; background: rgba(14, 26, 79, .88); border-radius: 14px; padding: 14px 20px; max-width: 280px; box-shadow: 0 8px 24px rgba(14, 26, 79, .3); }
+
+  /* Snake */
+  .board-wrap:has(canvas.snake) { background: #578a34; padding: 10px; border-radius: 16px; box-shadow: 0 10px 30px rgba(14,26,79,.35); }
+  .snake-bar { display: flex; gap: 22px; align-items: center; margin: -10px -10px 10px; padding: 10px 16px; background: #4a752c; border-radius: 16px 16px 0 0; color: #fff; font-weight: 800; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .snake-bar span { display: inline-flex; align-items: center; gap: 6px; }
+  .snake-bar svg { width: 28px; height: 28px; }
+  .screen.green { background: #4a752c; border-color: #3d6324; box-shadow: 6px 6px 0 rgba(14, 26, 79, .45); }
+  .screen.green .meters { display: none; }
+  .screen.green .status { color: #eaf6d6; }
+  .screen.green .dpad button { background: #3d6324; border-color: #a2d149; }
+  .screen.green .board-wrap:has(canvas.snake) { box-shadow: none; }
+  canvas.snake { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 6px; }
+  .dpad { display: none; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 48px); gap: 6px; }
+  .dpad button { font-size: 1.2rem; background: var(--ink-2); color: var(--paper); border: 2px solid var(--paper-dim); border-radius: 10px; cursor: pointer; }
+  .dpad .u { grid-column: 2; }
+  .dpad .l { grid-column: 1; grid-row: 2; }
+  .dpad .d { grid-column: 2; grid-row: 2; }
+  .dpad .r { grid-column: 3; grid-row: 2; }
+  @media (pointer: coarse) { .dpad { display: grid; } }
+
+  /* 2048 */
+  .g2048 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: var(--ink-2); padding: 10px; border-radius: 12px; aspect-ratio: 1; }
+  .tile {
+    border-radius: 8px; display: grid; place-items: center;
+    font-family: var(--display); color: var(--ink);
+    font-size: clamp(1.1rem, 6vw, 2rem);
+    background: #1d2e7a;
+    font-variant-numeric: tabular-nums;
+  }
+  .tile.sm { font-size: clamp(0.9rem, 4.6vw, 1.5rem); }
+  .tile.xs { font-size: clamp(0.75rem, 3.6vw, 1.15rem); }
+  .tile.new { animation: pop .18s ease-out; }
+  .tile.merged { animation: bump .18s ease-out; }
+  @keyframes pop { from { transform: scale(.4); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+  @keyframes bump { 50% { transform: scale(1.12); } }
+
+  /* Tic-tac-toe */
+  .seg { display: inline-flex; border: 2px solid var(--paper-dim); border-radius: 999px; overflow: hidden; }
+  .seg button { font: inherit; font-weight: 800; font-size: .9rem; background: transparent; color: var(--paper-dim); border: 0; padding: 6px 16px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--paper-dim); color: var(--ink); }
+  .ttt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: min(100%, 340px); aspect-ratio: 1; }
+  .ttt button {
+    font-family: var(--display); font-size: clamp(2.2rem, 12vw, 3.6rem); line-height: 1;
+    background: var(--ink-2); border: 3px solid #2a3c93; border-radius: 12px; cursor: pointer; color: var(--paper);
+  }
+  .ttt button.x { color: var(--sun); }
+  .ttt button.o { color: var(--pink); }
+  .ttt .ring { display: block; width: 62%; aspect-ratio: 1; margin: auto; border: clamp(7px, 2.6vw, 11px) solid currentColor; border-radius: 50%; box-sizing: border-box; }
+  .ttt button.win { background: var(--mint); color: var(--ink); border-color: var(--mint); }
+  .ttt button:disabled { cursor: default; }
+
+  /* Memory */
+  .mem { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: min(100%, 400px); }
+  .card { aspect-ratio: 3 / 4; perspective: 600px; background: none; border: 0; padding: 0; cursor: pointer; }
+  .card .inner { position: relative; display: block; width: 100%; height: 100%; transition: transform .35s; transform-style: preserve-3d; }
+  .card.up .inner, .card.done .inner { transform: rotateY(180deg); }
+  .card .face { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 10px; backface-visibility: hidden; border: 3px solid var(--ink); }
+  .card .back {
+    background: var(--lilac);
+    background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(14,26,79,.14) 6px 12px);
+  }
+  .card .front { background: var(--paper); transform: rotateY(180deg); font-size: clamp(1.8rem, 9vw, 2.8rem); -webkit-text-stroke: 1.5px var(--ink); }
+  .card.done .front { background: #dff9ee; }
+
+  /* Minesweeper */
+  .ms-bar { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .chip { font: inherit; font-weight: 800; font-size: .9rem; background: transparent; color: var(--paper-dim); border: 2px solid var(--paper-dim); border-radius: 999px; padding: 5px 14px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--pink); color: var(--ink); border-color: var(--pink); }
+  .mines-left { font-weight: 800; color: var(--paper-dim); font-variant-numeric: tabular-nums; }
+  .ms { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; width: min(100%, 400px); }
+  .ms button {
+    aspect-ratio: 1; border-radius: 6px; border: 0; cursor: pointer;
+    background: var(--paper-dim); box-shadow: inset -3px -3px 0 #8e9be0;
+    font-family: var(--display); font-size: clamp(0.8rem, 4vw, 1.2rem); padding: 0; color: var(--ink);
+  }
+  .ms button.open { background: #1d2e7a; box-shadow: none; cursor: default; }
+  .ms button.flag { background: var(--sun); box-shadow: inset -3px -3px 0 #d6a916; }
+  .ms button.mine { background: #3a4a9a; }
+  .ms button.boom { background: var(--pink); }
+  .n1 { color: #8fd3ff !important; } .n2 { color: var(--mint) !important; } .n3 { color: var(--pink) !important; }
+  .n4 { color: var(--lilac) !important; } .n5 { color: var(--sun) !important; } .n6, .n7, .n8 { color: #fff !important; }
+
+  footer { color: var(--paper-dim); font-size: .85rem; font-weight: 700; }
+
+  @media (max-width: 860px) {
+    .carts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .console { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .carts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cart .tag { display: none; }
+    .screen { padding: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Pocket Arcade</h1>
+    <p>Five small games that run right here in the page. Pick a cartridge and play. Your best scores are saved in this browser.</p>
+  </header>
+
+  <nav class="carts" id="carts" aria-label="Choose a game"></nav>
+
+  <section class="console">
+    <div class="screen">
+      <div class="hud">
+        <div class="game-title" id="gameTitle">Snake</div>
+        <div class="meters">
+          <div class="meter"><span id="scoreLabel">Score</span><b id="score">0</b></div>
+          <div class="meter alt"><span id="bestLabel">Best</span><b id="best">—</b></div>
+        </div>
+      </div>
+      <div class="area" id="area"></div>
+      <p class="status" id="status" aria-live="polite"></p>
+    </div>
+
+    <aside class="panel">
+      <h2>How to play</h2>
+      <p id="how"></p>
+      <h2>Controls</h2>
+      <dl id="controls"></dl>
+      <button class="btn" id="newGame" type="button">New game</button>
+    </aside>
+  </section>
+
+  <footer>Works with a keyboard, a mouse or a touchscreen.</footer>
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const C = { ink: '#0e1a4f', ink2: '#16256b', tile: '#13215e', sun: '#ffd23f', pink: '#ff6fa3', mint: '#6ee7b7', mintDark: '#34c796', paper: '#f7f8ff' };
+  const rand = n => Math.floor(Math.random() * n);
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem('pocket-arcade:' + k)); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem('pocket-arcade:' + k, JSON.stringify(v)); } catch (e) {} }
+  };
+
+  const area = $('#area');
+  const hud = {
+    labels(a, b) { $('#scoreLabel').textContent = a; $('#bestLabel').textContent = b; },
+    score(n) { $('#score').textContent = n; },
+    best(n) { $('#best').textContent = n == null ? '—' : n; },
+    status(t) { $('#status').textContent = t; },
+    // Saves a new best if it beats the old one. Returns true when it does.
+    record(key, n, lowerBetter) {
+      const b = store.get('best:' + key);
+      if (b == null || (lowerBetter ? n < b : n > b)) { store.set('best:' + key, n); this.best(n); return true; }
+      return false;
+    }
+  };
+
+  function overlay(parent) {
+    const el = document.createElement('div');
+    el.className = 'overlay';
+    el.hidden = true;
+    parent.appendChild(el);
+    return {
+      show(html, onClick) { el.innerHTML = `<div class="ov-card">${html}</div>`; el.hidden = false; el.onclick = onClick || null; },
+      hide() { el.hidden = true; el.onclick = null; }
+    };
+  }
+
+  const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+  const KEYDIR = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+
+  /* ---------- Snake ---------- */
+  const Snake = {
+    id: 'snake', title: 'Snake', glyph: '●', color: C.mint, tag: 'Eat apples, grow long',
+    how: 'Steer the snake to the apples. Each apple makes the snake one segment longer. It starts slow and gets a little faster with every apple. Hit a wall or your own tail and the run ends.',
+    controls: [['<kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>', 'Steer (WASD works too)'], ['<kbd>Space</kbd>', 'Start or pause'], ['Swipe', 'Steer on a touchscreen']],
+    labels: ['Apples', 'Best'], swipe: true, N: 15, PX: 600,
+    mount(el) {
+      el.innerHTML = `<div class="board-wrap">
+          <div class="snake-bar">
+            <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="8" fill="#e7471d"/><path d="M12 6c0-2 1-3 3-4" stroke="#6b3f1d" stroke-width="1.6" fill="none" stroke-linecap="round"/><ellipse cx="16" cy="4.5" rx="3" ry="1.4" fill="#4caf2a" transform="rotate(-25 16 4.5)"/></svg><b class="sb-score" aria-label="Apples">0</b></span>
+            <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v5a5 5 0 0 1-10 0z" fill="#ffd23f"/><path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3" stroke="#ffd23f" stroke-width="1.6" fill="none"/><rect x="10.5" y="12" width="3" height="5" fill="#e0b21f"/><rect x="7.5" y="17" width="9" height="3" rx="1" fill="#ffd23f"/></svg><b class="sb-best" aria-label="Best">0</b></span>
+          </div>
+          <canvas class="snake" width="${this.PX}" height="${this.PX}" aria-label="Snake board"></canvas>
+        </div>
+        <div class="dpad" aria-label="Direction pad">
+          <button class="u" data-d="up" aria-label="Up">▲</button><button class="l" data-d="left" aria-label="Left">◀</button>
+          <button class="d" data-d="down" aria-label="Down">▼</button><button class="r" data-d="right" aria-label="Right">▶</button>
+        </div>`;
+      this.ctx = $('canvas', el).getContext('2d');
+      this.ov = overlay($('.board-wrap', el));
+      this.sEl = $('.sb-score', el); this.bEl = $('.sb-best', el);
+      $('canvas', el).addEventListener('click', () => { if (!this.running) this.start(); });
+      el.querySelectorAll('.dpad button').forEach(b => b.addEventListener('click', () => this.turn(b.dataset.d)));
+      this.reset();
+      const loop = now => { this.raf = requestAnimationFrame(loop); this.frame(now); };
+      this.raf = requestAnimationFrame(loop);
+    },
+    reset() {
+      this.body = [{ x: 5, y: 7 }, { x: 4, y: 7 }, { x: 3, y: 7 }, { x: 2, y: 7 }];
+      this.vacated = null; this.grow = 0; this.eaten = null; this.foodBorn = 0; this.frac = 1; this.acc = 0; this.last = null;
+      this.dir = DIRS.right; this.queue = [];
+      this.food = this.place(); this.score = 0; this.running = false; this.over = false;
+      hud.score(0); this.bar(); this.ov.hide();
+      hud.status('Press an arrow key or swipe to start.');
+    },
+    bar() {
+      this.sEl.textContent = this.score;
+      this.bEl.textContent = store.get('best:snake') || 0;
+    },
+    start() {
+      if (this.over) this.reset();
+      this.running = true; this.last = null; this.ov.hide(); hud.status('');
+    },
+    pause() {
+      this.running = false;
+      hud.status('Paused. Press Space or tap the board to keep going.');
+    },
+    // Starts slow (about 4 squares a second) and speeds up a little with every apple.
+    speed() { return Math.max(85, 200 - this.score * 4); },
+    turn(d) {
+      if (!this.running) this.start();
+      const D = DIRS[d], last = this.queue.length ? this.queue[this.queue.length - 1] : this.dir;
+      if ((D.x === -last.x && D.y === -last.y) || D === last) return;
+      // A turn pressed early in a move takes effect right away instead of waiting for the next square.
+      if (!this.queue.length && this.frac < 0.4 && !this.eaten) {
+        const b = this.body[1], h = { x: b.x + D.x, y: b.y + D.y };
+        const free = h.x >= 0 && h.y >= 0 && h.x < this.N && h.y < this.N && !(h.x === this.food.x && h.y === this.food.y) && !this.body.slice(1).some(p => p.x === h.x && p.y === h.y);
+        if (free) { this.body[0] = h; this.dir = D; return; }
+      }
+      if (this.queue.length < 3) this.queue.push(D);
+    },
+    place() {
+      let p;
+      do { p = { x: rand(this.N), y: rand(this.N) }; } while (this.body.some(s => s.x === p.x && s.y === p.y));
+      return p;
+    },
+    // Runs every animation frame; advances the grid at the game speed and draws in between.
+    frame(now) {
+      if (this.running) {
+        if (this.last == null) this.last = now;
+        this.acc += Math.min(now - this.last, 250); this.last = now;
+        while (this.running && this.acc >= this.speed()) { this.acc -= this.speed(); this.step(); }
+        if (this.running) this.frac = this.acc / this.speed();
+      }
+      this.draw(now);
+    },
+    step() {
+      this.eaten = null;
+      if (this.queue.length) this.dir = this.queue.shift();
+      const h = { x: this.body[0].x + this.dir.x, y: this.body[0].y + this.dir.y };
+      const eats = h.x === this.food.x && h.y === this.food.y;
+      const bodyToCheck = eats ? this.body : this.body.slice(0, -1);
+      if (h.x < 0 || h.y < 0 || h.x >= this.N || h.y >= this.N || bodyToCheck.some(s => s.x === h.x && s.y === h.y)) return this.die();
+      this.body.unshift(h);
+      if (eats) {
+        this.grow += 1;
+        this.score++; hud.score(this.score); this.bar();
+        this.eaten = this.food;
+        this.food = this.place();
+        this.foodBorn = performance.now();
+      }
+      if (this.grow > 0) { this.grow--; this.vacated = null; }
+      else this.vacated = this.body.pop();
+    },
+    die() {
+      this.running = false; this.over = true; this.frac = 1;
+      const nb = hud.record('snake', this.score); this.bar();
+      this.ov.show(`<strong>Game over</strong>${this.score} apple${this.score === 1 ? '' : 's'}${nb && this.score ? '. New best!' : ''}<br>Press Space or tap to play again`, () => this.start());
+    },
+    draw(now) {
+      const g = this.ctx, s = this.PX / this.N, t = this.frac;
+      const c = p => ({ x: (p.x + 0.5) * s, y: (p.y + 0.5) * s });
+      const lerp = (a, b) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+
+      if (!this.bg) {
+        // Paint the checkerboard once and reuse it every frame
+        this.bg = document.createElement("canvas"); this.bg.width = this.bg.height = this.PX;
+        const b = this.bg.getContext("2d");
+        for (let y = 0; y < this.N; y++) for (let x = 0; x < this.N; x++) {
+          b.fillStyle = (x + y) % 2 ? "#a2d149" : "#aad751"; b.fillRect(x * s, y * s, s, s);
+        }
+      }
+      g.drawImage(this.bg, 0, 0);
+
+      // The apple being eaten stays until the head reaches it, then shrinks away.
+      if (this.eaten) this.apple(c(this.eaten), t < 0.5 ? 1 : Math.max(0, (1 - t) * 2), 0);
+      // The new apple pops in with a little bounce.
+      const age = Math.min(1, (now - this.foodBorn) / 300);
+      const pop = 1 + 2.2 * (age - 1) ** 3 + 1.2 * (age - 1) ** 2;
+      this.apple(c(this.food), pop, Math.sin(now / 260) * s * 0.04);
+
+      // Body as one smooth tube: interpolated head, the grid cells, then the interpolated tail
+      const pts = [lerp(c(this.body[1]), c(this.body[0]))];
+      for (let i = 1; i < this.body.length; i++) pts.push(c(this.body[i]));
+      if (this.vacated) pts.push(lerp(c(this.vacated), c(this.body[this.body.length - 1])));
+      const path = () => { g.beginPath(); g.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y); };
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      path(); g.strokeStyle = "#4e7cf6"; g.lineWidth = s * 0.74; g.stroke();
+
+      // Head: a rounded snout, big googly eyes on the sides and two nostrils
+      const h = pts[0], d = this.dir, px = -d.y, py = d.x;
+      const at = (fw, side) => ({ x: h.x + d.x * s * fw + px * side * s, y: h.y + d.y * s * fw + py * side * s });
+      g.fillStyle = "#4e7cf6";
+      g.beginPath(); g.arc(h.x, h.y, s * 0.4, 0, Math.PI * 2); g.fill();
+      const snout = at(0.12, 0);
+      g.beginPath(); g.arc(snout.x, snout.y, s * 0.34, 0, Math.PI * 2); g.fill();
+      for (const side of [-1, 1]) {
+        const e = at(0.02, side * 0.22);
+        g.fillStyle = "#4e7cf6"; g.beginPath(); g.arc(e.x, e.y, s * 0.2, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#fff"; g.beginPath(); g.arc(e.x, e.y, s * 0.15, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#1a2b6d"; g.beginPath(); g.arc(e.x + d.x * s * 0.06, e.y + d.y * s * 0.06, s * 0.085, 0, Math.PI * 2); g.fill();
+        const n = at(0.38, side * 0.08);
+        g.fillStyle = "#2f55c8"; g.beginPath(); g.arc(n.x, n.y, s * 0.035, 0, Math.PI * 2); g.fill();
+      }
+    },
+    apple(f, k, bob) {
+      if (k <= 0) return;
+      const g = this.ctx, s = this.PX / this.N, r = s * 0.36 * k, y = f.y + bob;
+      g.fillStyle = "rgba(60,90,20,.22)";
+      g.beginPath(); g.ellipse(f.x, f.y + s * 0.38, s * 0.26 * k, s * 0.06 * k, 0, 0, Math.PI * 2); g.fill();
+      // Round red body with soft shading
+      const grad = g.createRadialGradient(f.x - r * 0.35, y - r * 0.4, r * 0.1, f.x, y, r * 1.05);
+      grad.addColorStop(0, "#ff7a55"); grad.addColorStop(0.55, "#e7471d"); grad.addColorStop(1, "#b92f10");
+      g.fillStyle = grad;
+      g.beginPath(); g.arc(f.x, y + r * 0.05, r, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "rgba(255,255,255,.55)";
+      g.beginPath(); g.ellipse(f.x - r * 0.4, y - r * 0.3, r * 0.16, r * 0.1, -0.7, 0, Math.PI * 2); g.fill();
+      // Stem and leaf
+      g.strokeStyle = "#6b3f1d"; g.lineWidth = s * 0.05 * k; g.lineCap = "round";
+      g.beginPath(); g.moveTo(f.x, y - r * 0.8); g.quadraticCurveTo(f.x + r * 0.05, y - r * 1.15, f.x + r * 0.15, y - r * 1.3); g.stroke();
+      g.fillStyle = "#4caf2a";
+      g.beginPath(); g.ellipse(f.x + r * 0.45, y - r * 1.12, r * 0.38, r * 0.17, -0.45, 0, Math.PI * 2); g.fill();
+    },
+    key(e) {
+      if (KEYDIR[e.key]) { this.turn(KEYDIR[e.key]); return true; }
+      if (e.key === ' ') { this.running ? this.pause() : this.start(); return true; }
+      return false;
+    },
+    onSwipe(d) { this.turn(d); },
+    unmount() { cancelAnimationFrame(this.raf); }
+  };
+
+  /* ---------- 2048 ---------- */
+  const TILE_COLORS = ['#f7f8ff', '#dfe6ff', '#ffe89a', '#ffd23f', '#ffb347', '#ff8c5a', '#ff6fa3', '#e84f8a', '#c86bfa', '#9b8aff', '#6ee7b7', '#2ee6a6', '#8fd3ff'];
+  const G2048 = {
+    id: '2048', title: '2048', glyph: '■', color: C.sun, tag: 'Slide and merge tiles',
+    how: 'Slide every tile at once. When two tiles with the same number touch, they merge into one worth double. Reach the 2048 tile, then see how far past it you can get.',
+    controls: [['<kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>', 'Slide (WASD works too)'], ['Swipe', 'Slide on a touchscreen']],
+    labels: ['Score', 'Best'], swipe: true,
+    mount(el) {
+      el.innerHTML = '<div class="board-wrap"><div class="g2048" role="grid" aria-label="2048 board"></div></div>';
+      this.board = $('.g2048', el);
+      this.ov = overlay($('.board-wrap', el));
+      this.reset();
+    },
+    reset() {
+      this.g = Array(16).fill(0); this.score = 0; this.won = false; this.merged = new Set();
+      this.add(); this.add(); this.ov.hide(); hud.score(0);
+      hud.status('Join the numbers to reach 2048.');
+      this.render();
+    },
+    add() {
+      const empty = this.g.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+      if (!empty.length) return;
+      const i = empty[rand(empty.length)];
+      this.g[i] = Math.random() < 0.9 ? 2 : 4; this.fresh = i;
+    },
+    lines(dir) {
+      const L = [];
+      for (let k = 0; k < 4; k++) {
+        let line = (dir === 'left' || dir === 'right') ? [0, 1, 2, 3].map(j => k * 4 + j) : [0, 1, 2, 3].map(j => j * 4 + k);
+        if (dir === 'right' || dir === 'down') line.reverse();
+        L.push(line);
+      }
+      return L;
+    },
+    move(dir) {
+      if (this.dead) return;
+      let moved = false, gained = 0; this.merged = new Set();
+      for (const line of this.lines(dir)) {
+        const vals = line.map(i => this.g[i]).filter(Boolean), out = [], mergedAt = [];
+        for (let i = 0; i < vals.length; i++) {
+          if (vals[i] === vals[i + 1]) { out.push(vals[i] * 2); gained += vals[i] * 2; mergedAt.push(out.length - 1); i++; }
+          else out.push(vals[i]);
+        }
+        while (out.length < 4) out.push(0);
+        line.forEach((idx, k) => { if (this.g[idx] !== out[k]) moved = true; this.g[idx] = out[k]; });
+        mergedAt.forEach(k => this.merged.add(line[k]));
+      }
+      if (!moved) return;
+      this.score += gained; hud.score(this.score);
+      this.add(); this.render();
+      if (!this.won && this.g.includes(2048)) {
+        this.won = true;
+        this.ov.show('<strong>2048!</strong>You made it. Tap to keep going.', () => this.ov.hide());
+      } else if (!this.canMove()) {
+        this.dead = true;
+        const nb = hud.record('2048', this.score);
+        this.ov.show(`<strong>No moves left</strong>Final score ${this.score}${nb ? '. New best!' : ''}<br>Tap to start over`, () => this.reset());
+      }
+    },
+    canMove() {
+      for (let i = 0; i < 16; i++) {
+        if (!this.g[i]) return true;
+        if (i % 4 < 3 && this.g[i] === this.g[i + 1]) return true;
+        if (i < 12 && this.g[i] === this.g[i + 4]) return true;
+      }
+      return false;
+    },
+    render() {
+      this.dead = this.dead && !this.canMove();
+      this.board.innerHTML = this.g.map((v, i) => {
+        if (!v) return '<div class="tile" role="gridcell"></div>';
+        const lvl = Math.min(Math.log2(v) - 1, TILE_COLORS.length - 1);
+        const size = v >= 1000 ? ' xs' : v >= 100 ? ' sm' : '';
+        const anim = i === this.fresh ? ' new' : this.merged.has(i) ? ' merged' : '';
+        return `<div class="tile${size}${anim}" role="gridcell" style="background:${TILE_COLORS[lvl]}">${v}</div>`;
+      }).join('');
+      this.fresh = -1;
+    },
+    key(e) { if (KEYDIR[e.key]) { this.move(KEYDIR[e.key]); return true; } return false; },
+    onSwipe(d) { this.move(d); },
+    unmount() {}
+  };
+  // reset() also needs to clear the dead flag
+  const _r2048 = G2048.reset; G2048.reset = function () { this.dead = false; _r2048.call(this); };
+
+  /* ---------- Tic-tac-toe ---------- */
+  const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  const TTT = {
+    id: 'ttt', title: 'Tic-tac-toe', glyph: '✕', color: C.pink, tag: 'Three in a row vs the computer',
+    how: 'You play X and go first. Get three in a row across, down or diagonally. On Hard the computer never loses, so a draw there is a good result.',
+    controls: [['Click or tap', 'Place your X'], ['<kbd>1</kbd>–<kbd>9</kbd>', 'Place by square, like a phone keypad']],
+    labels: ['Wins', 'Losses'],
+    mount(el) {
+      this.tally = store.get('ttt') || { w: 0, l: 0, d: 0 };
+      this.diff = store.get('ttt-diff') || 'hard';
+      el.innerHTML = `<div class="seg" role="group" aria-label="Difficulty"><button type="button" data-d="easy">Easy</button><button type="button" data-d="hard">Hard</button></div>
+        <div class="ttt" role="grid" aria-label="Tic-tac-toe board">${Array.from({ length: 9 }, (_, i) => `<button type="button" data-i="${i}" aria-label="Square ${i + 1}"></button>`).join('')}</div>`;
+      this.cells = [...el.querySelectorAll('.ttt button')];
+      this.cells.forEach(b => b.addEventListener('click', () => this.done ? this.reset() : this.play(+b.dataset.i)));
+      this.segs = [...el.querySelectorAll('.seg button')];
+      this.segs.forEach(b => b.addEventListener('click', () => { this.diff = b.dataset.d; store.set('ttt-diff', this.diff); this.reset(); }));
+      this.reset();
+    },
+    reset() {
+      clearTimeout(this.to);
+      this.b = Array(9).fill(''); this.done = false; this.busy = false; this.win = null;
+      this.segs.forEach(s => s.setAttribute('aria-pressed', s.dataset.d === this.diff));
+      hud.status(`Your move. You are X. Draws so far: ${this.tally.d}.`);
+      this.render();
+    },
+    render() {
+      this.cells.forEach((c, i) => {
+        c.innerHTML = this.b[i] === 'X' ? '✕' : this.b[i] === 'O' ? '<span class="ring"></span>' : '';
+        c.className = (this.b[i] === 'X' ? 'x' : this.b[i] === 'O' ? 'o' : '') + (this.win && this.win.includes(i) ? ' win' : '');
+        c.setAttribute('aria-label', `Square ${i + 1}${this.b[i] ? ', ' + this.b[i] : ', empty'}`);
+      });
+      hud.score(this.tally.w); hud.best(this.tally.l);
+    },
+    play(i) {
+      if (this.done || this.busy || this.b[i]) return;
+      this.b[i] = 'X'; this.render();
+      if (this.end()) return;
+      this.busy = true; hud.status('The computer is thinking…');
+      this.to = setTimeout(() => {
+        this.b[this.ai()] = 'O'; this.busy = false; this.render();
+        if (!this.end()) hud.status('Your move.');
+      }, 380);
+    },
+    winner(b) {
+      for (const L of LINES) if (b[L[0]] && b[L[0]] === b[L[1]] && b[L[0]] === b[L[2]]) return { p: b[L[0]], line: L };
+      return b.every(Boolean) ? { p: 'draw' } : null;
+    },
+    end() {
+      const w = this.winner(this.b);
+      if (!w) return false;
+      this.done = true; this.win = w.line || null;
+      if (w.p === 'X') { this.tally.w++; hud.status('You win! Tap the board for another round.'); }
+      else if (w.p === 'O') { this.tally.l++; hud.status('The computer wins. Tap the board to try again.'); }
+      else { this.tally.d++; hud.status(`Draw (${this.tally.d} total). Tap the board for another round.`); }
+      store.set('ttt', this.tally); this.render();
+      return true;
+    },
+    mm(b, turn, depth) {
+      const w = this.winner(b);
+      if (w) return w.p === 'O' ? 10 - depth : w.p === 'X' ? depth - 10 : 0;
+      let best = turn === 'O' ? -99 : 99;
+      for (let i = 0; i < 9; i++) if (!b[i]) {
+        b[i] = turn;
+        const s = this.mm(b, turn === 'O' ? 'X' : 'O', depth + 1);
+        b[i] = '';
+        best = turn === 'O' ? Math.max(best, s) : Math.min(best, s);
+      }
+      return best;
+    },
+    ai() {
+      const free = this.b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+      if (this.diff === 'easy' && Math.random() < 0.55) return free[rand(free.length)];
+      let best = -99, moves = [];
+      for (const i of free) {
+        this.b[i] = 'O'; const s = this.mm(this.b, 'X', 1); this.b[i] = '';
+        if (s > best) { best = s; moves = [i]; } else if (s === best) moves.push(i);
+      }
+      return moves[rand(moves.length)];
+    },
+    key(e) {
+      const pad = { 7: 0, 8: 1, 9: 2, 4: 3, 5: 4, 6: 5, 1: 6, 2: 7, 3: 8 };
+      if (e.key in pad) { this.done ? this.reset() : this.play(pad[e.key]); return true; }
+      return false;
+    },
+    unmount() { clearTimeout(this.to); }
+  };
+
+  /* ---------- Memory ---------- */
+  const SYMBOLS = [['★', C.sun], ['●', C.pink], ['▲', C.mint], ['■', '#9b8aff'], ['♥', '#ff5c7a'], ['♦', '#ffb347'], ['♣', '#2ee6a6'], ['♠', '#8fd3ff']];
+  const Memory = {
+    id: 'memory', title: 'Memory', glyph: '♥', color: '#ff5c7a', tag: 'Find the matching pairs',
+    how: 'Flip two cards at a time to find all eight pairs. Matched cards stay face up. The fewer moves you need, the better.',
+    controls: [['Click or tap', 'Flip a card'], ['<kbd>Tab</kbd> + <kbd>Enter</kbd>', 'Play with the keyboard']],
+    labels: ['Moves', 'Best'], lowerBetter: true,
+    mount(el) { el.innerHTML = '<div class="mem" role="grid" aria-label="Memory cards"></div>'; this.grid = $('.mem', el); this.reset(); },
+    reset() {
+      clearTimeout(this.to);
+      this.deck = shuffle([...SYMBOLS.keys(), ...SYMBOLS.keys()]);
+      this.up = []; this.done = new Set(); this.moves = 0; this.lock = false;
+      hud.score(0); hud.status('Find the eight pairs.');
+      this.grid.innerHTML = this.deck.map((s, i) => `<button type="button" class="card" data-i="${i}" aria-label="Card ${i + 1}, face down">
+        <span class="inner"><span class="face back"></span><span class="face front" style="color:${SYMBOLS[s][1]}">${SYMBOLS[s][0]}</span></span></button>`).join('');
+      this.cards = [...this.grid.children];
+      this.cards.forEach(c => c.addEventListener('click', () => this.flip(+c.dataset.i)));
+    },
+    flip(i) {
+      if (this.lock || this.done.has(i) || this.up.includes(i)) return;
+      this.up.push(i); this.cards[i].classList.add('up');
+      this.cards[i].setAttribute('aria-label', `Card ${i + 1}, ${SYMBOLS[this.deck[i]][0]}`);
+      if (this.up.length < 2) return;
+      this.moves++; hud.score(this.moves);
+      const [a, b] = this.up;
+      if (this.deck[a] === this.deck[b]) {
+        [a, b].forEach(k => { this.done.add(k); this.cards[k].classList.add('done'); });
+        this.up = [];
+        if (this.done.size === 16) {
+          const nb = hud.record('memory', this.moves, true);
+          hud.status(`All pairs found in ${this.moves} moves${nb ? '. New best!' : '.'} Press New game to shuffle.`);
+        } else hud.status(`A match. ${8 - this.done.size / 2} pairs to go.`);
+      } else {
+        this.lock = true;
+        this.to = setTimeout(() => {
+          [a, b].forEach(k => { this.cards[k].classList.remove('up'); this.cards[k].setAttribute('aria-label', `Card ${k + 1}, face down`); });
+          this.up = []; this.lock = false;
+        }, 750);
+      }
+    },
+    key() { return false; },
+    unmount() { clearTimeout(this.to); }
+  };
+
+  /* ---------- Minesweeper ---------- */
+  const Mines = {
+    id: 'mines', title: 'Minesweeper', glyph: '✹', color: '#9b8aff', tag: 'Clear the field safely',
+    how: 'Open every square that has no mine under it. A number shows how many mines touch that square. Your first click is always safe. Flag squares you think hide a mine.',
+    controls: [['Click or tap', 'Open a square'], ['Right-click', 'Place or remove a flag'], ['Flag mode', 'Flag by tapping on a touchscreen']],
+    labels: ['Time', 'Best'], lowerBetter: true, W: 9, M: 10,
+    mount(el) {
+      el.innerHTML = `<div class="ms-bar"><button type="button" class="chip" aria-pressed="false">Flag mode</button><span class="mines-left"></span></div>
+        <div class="ms" role="grid" aria-label="Minefield">${Array.from({ length: 81 }, (_, i) => `<button type="button" data-i="${i}"></button>`).join('')}</div>`;
+      this.chip = $('.chip', el); this.left = $('.mines-left', el);
+      this.chip.addEventListener('click', () => { this.flagMode = !this.flagMode; this.chip.setAttribute('aria-pressed', this.flagMode); });
+      this.cells = [...el.querySelectorAll('.ms button')];
+      this.cells.forEach(c => {
+        const i = +c.dataset.i;
+        c.addEventListener('click', () => this.flagMode ? this.flag(i) : this.open(i));
+        c.addEventListener('contextmenu', e => { e.preventDefault(); this.flag(i); });
+      });
+      this.flagMode = false;
+      this.reset();
+    },
+    reset() {
+      clearInterval(this.t);
+      this.mine = null; this.opened = Array(81).fill(false); this.flags = Array(81).fill(false);
+      this.over = false; this.boom = -1; this.time = 0;
+      hud.score(0); hud.status('Open any square to begin.');
+      this.render();
+    },
+    nb(i) {
+      const x = i % 9, y = Math.floor(i / 9), out = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < 9 && ny < 9) out.push(ny * 9 + nx);
+      }
+      return out;
+    },
+    lay(safe) {
+      const banned = new Set([safe, ...this.nb(safe)]);
+      const spots = shuffle([...Array(81).keys()].filter(i => !banned.has(i))).slice(0, this.M);
+      this.mine = Array(81).fill(false); spots.forEach(i => this.mine[i] = true);
+      this.count = this.mine.map((_, i) => this.nb(i).filter(n => this.mine[n]).length);
+      this.t = setInterval(() => { this.time++; hud.score(this.time); }, 1000);
+      hud.status('Watch the numbers.');
+    },
+    open(i) {
+      if (this.over || this.flags[i] || this.opened[i]) return;
+      if (!this.mine) this.lay(i);
+      if (this.mine[i]) return this.lose(i);
+      const stack = [i];
+      while (stack.length) {
+        const k = stack.pop();
+        if (this.opened[k] || this.flags[k]) continue;
+        this.opened[k] = true;
+        if (this.count[k] === 0) this.nb(k).forEach(n => { if (!this.opened[n]) stack.push(n); });
+      }
+      if (this.opened.filter(Boolean).length === 81 - this.M) this.winGame();
+      this.render();
+    },
+    flag(i) {
+      if (this.over || this.opened[i]) return;
+      this.flags[i] = !this.flags[i]; this.render();
+    },
+    lose(i) {
+      this.over = true; this.boom = i; clearInterval(this.t);
+      hud.status('Boom. That was a mine. Press New game to try again.');
+      this.render();
+    },
+    winGame() {
+      this.over = true; clearInterval(this.t);
+      const nb = hud.record('mines', this.time, true);
+      hud.status(`Field cleared in ${this.time} seconds${nb ? '. New best!' : '.'}`);
+    },
+    render() {
+      this.cells.forEach((c, i) => {
+        let cls = '', txt = '', label = 'hidden';
+        if (this.opened[i]) {
+          cls = 'open'; const n = this.count[i];
+          if (n) { txt = n; cls += ' n' + n; }
+          label = n ? n + ' nearby' : 'clear';
+        } else if (this.over && this.mine && this.mine[i]) {
+          cls = i === this.boom ? 'boom' : 'mine'; txt = '✹'; label = 'mine';
+        } else if (this.flags[i]) { cls = 'flag'; txt = '⚑'; label = 'flagged'; }
+        c.className = cls; c.textContent = txt;
+        c.setAttribute('aria-label', `Row ${Math.floor(i / 9) + 1}, column ${i % 9 + 1}, ${label}`);
+      });
+      this.left.textContent = `Mines left: ${this.M - this.flags.filter(Boolean).length}`;
+    },
+    key(e) { if (e.key === 'f' || e.key === 'F') { this.chip.click(); return true; } return false; },
+    unmount() { clearInterval(this.t); }
+  };
+  Mines.controls.push(['<kbd>F</kbd>', 'Toggle flag mode']);
+
+  /* ---------- Shell ---------- */
+  const GAMES = [Snake, G2048, TTT, Memory, Mines];
+  const carts = $('#carts');
+  carts.innerHTML = GAMES.map(g => `<button type="button" class="cart" data-k="${g.id}" style="--cart-c:${g.color}" aria-pressed="false">
+    <span class="glyph" aria-hidden="true">${g.glyph}</span><span class="name">${g.title}</span><span class="tag">${g.tag}</span></button>`).join('');
+  carts.querySelectorAll('.cart').forEach(b => b.addEventListener('click', () => load(b.dataset.k)));
+
+  let current = null;
+  function load(key) {
+    const g = GAMES.find(x => x.id === key) || Snake;
+    if (current) current.unmount();
+    current = g;
+    carts.querySelectorAll('.cart').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === g.id));
+    $('#gameTitle').textContent = g.title;
+    $('#how').textContent = g.how;
+    $('#controls').innerHTML = g.controls.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+    area.classList.toggle('swipe', !!g.swipe);
+    $('.screen').classList.toggle('green', g.id === 'snake');
+    hud.labels(...g.labels);
+    hud.best(store.get('best:' + g.id));
+    hud.status('');
+    area.innerHTML = '';
+    g.mount(area);
+    store.set('last', g.id);
+  }
+
+  $('#newGame').addEventListener('click', () => current && current.reset());
+
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (current && current.key(e)) e.preventDefault();
+  });
+
+  let t0 = null;
+  area.addEventListener('touchstart', e => { if (current.onSwipe) t0 = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+  area.addEventListener('touchend', e => {
+    if (!t0 || !current.onSwipe) return;
+    const dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y;
+    t0 = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    current.onSwipe(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  }, { passive: true });
+
+  const fromHash = location.hash.slice(1);
+  load(GAMES.some(g => g.id === fromHash) ? fromHash : (store.get('last') || 'snake'));
+})();
+</script>
+</body>
+</html>
